@@ -11,8 +11,12 @@ import pandas as pd
 import re
 from urllib.parse import urlparse
 
-model = joblib.load("/workspaces/Phishing_DataMining/app/lightgbm_model.pkl")
-
+try:
+    model = joblib.load("app/lightgbm_model.pkl")
+    st.success("Model başarıyla yüklendi")
+except Exception as e:
+    st.error(f"Model yüklenirken hata oluştu: {e}")
+    st.stop()
 
 # URL'den anlamlı veri çıkar
 def extract_features(url):
