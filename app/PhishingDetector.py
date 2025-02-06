@@ -11,7 +11,8 @@ import pandas as pd
 import re
 from urllib.parse import urlparse
 
-model = joblib.load("app/lightgbm_model.pkl")
+model = joblib.load("Phishing_DataMining/app/lightgbm_model.pkl")
+
 
 # URL'den anlamlı veri çıkar
 def extract_features(url):
