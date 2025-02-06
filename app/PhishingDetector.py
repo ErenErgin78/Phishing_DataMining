@@ -12,7 +12,7 @@ import re
 from urllib.parse import urlparse
 
 try:
-    model = joblib.load("model.pkl")
+    model = joblib.load("app/model.pkl")
     st.success("Model başarıyla yüklendi")
 except Exception as e:
     st.error(f"Model yüklenirken hata oluştu: {e}")
