@@ -2,4 +2,3 @@ streamlit
 joblib
 lightgbm
 sklearn
-pandas
