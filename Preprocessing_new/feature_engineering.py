@@ -62,3 +62,6 @@ output_path = "final_url_features.csv"
 features_df.to_csv(output_path, index=False)
 
 print(f"Tamamlandı: {output_path}")
+
+
+
