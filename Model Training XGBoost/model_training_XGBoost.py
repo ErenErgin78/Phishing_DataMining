@@ -33,12 +33,17 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Model
 model = xgb.XGBClassifier(
-    n_estimators=100,
-    learning_rate=0.1,
-    max_depth=6,
-    random_state=69,
-    use_label_encoder=False,
-    eval_metric="logloss"
+    n_estimators=150,        # 150 ağaç
+    learning_rate=0.05,      # Küçük öğrenme oranı
+    max_depth=4,             # Daha az karmaşık ağaçlar
+    reg_alpha=0.1,           # L1 regularization
+    reg_lambda=0.5,          # L2 regularization
+    subsample=0.8,           # %80 veri kullan
+    colsample_bytree=0.8,    # %80 özellik kullan
+    gamma=0.2,               # Bölünmeyi sınırlandır
+    min_child_weight=3,      # Düğümleri önlemek için minimum örnek
+    random_state=42,
+    use_label_encoder=False
 )
 
 # Eğitim
