@@ -15,7 +15,7 @@ from sklearn.preprocessing import LabelEncoder
 
 # 📌 Modeli yükle
 try:
-    with open("xgboost_model.pkl", "rb") as file:
+    with open("app/xgboost_model.pkl", "rb") as file:
         model = pickle.load(file)
     st.success("XGBoost Model başarıyla yüklendi")
 except Exception as e:
