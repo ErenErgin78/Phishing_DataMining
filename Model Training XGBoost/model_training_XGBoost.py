@@ -29,19 +29,16 @@ y = df["status"]
 X.fillna(0, inplace=True)
 
 #  Eğitim ve test setleri
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=31)
 
 # Model
 model = xgb.XGBClassifier(
-    n_estimators=150,
-    learning_rate=0.05,
-    max_depth=4,
-    reg_alpha=0.1,
-    reg_lambda=0.5,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    random_state=31,
-    use_label_encoder=False
+    n_estimators=100,
+    learning_rate=0.1,
+    max_depth=6,
+    random_state=69,
+    use_label_encoder=False,
+    eval_metric="logloss"
 )
 
 # Eğitim
@@ -64,6 +61,8 @@ results_df.to_csv("xgboost_predictions.csv", index=False)
 
 # Modeli kaydet (JSON ve Pickle formatında)
 model.save_model("xgboost_model.json")
+model.save_model("xgboost_model.ubj")  # Yeni formatta kaydet
+
 
 with open("xgboost_model.pkl", "wb") as file:
     pickle.dump(model, file)
