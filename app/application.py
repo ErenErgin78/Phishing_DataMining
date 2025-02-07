@@ -15,7 +15,7 @@ from sklearn.preprocessing import LabelEncoder
 
 # 📌 Modeli yükle
 try:
-    with open("app/xgboost_model.pkl", "rb") as file:
+    with open("xgboost_model.pkl", "rb") as file:
         model = pickle.load(file)
     st.success("XGBoost Model başarıyla yüklendi")
 except Exception as e:
@@ -29,14 +29,15 @@ feature_order = [
     "has_http", "has_https", "has_ip"
 ]
 
-# 📌 URL'den özellik çıkaran fonksiyon (Birebir `features_df` işlemleri)
-def extract_features_from_url(url):
+# 📌 Kullanıcıdan alınan URL'yi tam olarak veri setindeki işlemlerden geçiren fonksiyon
+def process_url(url):
     if not url.startswith(("http://", "https://")):
         url = "http://" + url
 
     parsed_url = urlparse(url)
     extracted = tldextract.extract(parsed_url.netloc)
 
+    # 📌 Özellikleri oluştur
     features = {
         "url_length": len(url),
         "num_digits": sum(c.isdigit() for c in url),
@@ -45,31 +46,22 @@ def extract_features_from_url(url):
         "num_special_chars": sum(not c.isalnum() for c in url),
         "num_parameters": url.count("?"),
         "num_fragments": url.count("#"),
+        "subdomain": extracted.subdomain if extracted.subdomain else "none",
+        "root_domain": f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain,
+        "domain_extension": extracted.suffix if extracted.suffix else "unknown",
         "has_http": 1 if "http://" in url else 0,
         "has_https": 1 if "https://" in url else 0,
-        "has_ip": 1 if re.search(r'(\d{1,3}\.){3}\d{1,3}', parsed_url.netloc) or re.search(r'\[?[a-fA-F0-9:]+\]?', parsed_url.netloc) else 0,
+        "has_ip": 1 if re.match(r"(\d{1,3}\.){3}\d{1,3}", parsed_url.netloc) else 0
     }
 
-    # 📌 Domain Ayrıştırma (`extract_domain_info` fonksiyonu ile aynı)
-    try:
-        subdomain = extracted.subdomain if extracted.subdomain else "none"
-        root_domain = f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
-        domain_extension = extracted.suffix if extracted.suffix else "unknown"
-    except:
-        subdomain, root_domain, domain_extension = "error", "error", "error"
-
-    features["subdomain"] = subdomain
-    features["root_domain"] = root_domain
-    features["domain_extension"] = domain_extension
-
-    return features
+    return pd.DataFrame([features])
 
 # 📌 Kategorik değişkenleri encode eden fonksiyon
 def encode_categorical_features(df):
     categorical_columns = ["subdomain", "root_domain", "domain_extension"]
     for col in categorical_columns:
         le = LabelEncoder()
-        df[col] = le.fit_transform(df[col].astype(str))
+        df[col] = le.fit_transform(df[col].astype(str))  
     return df
 
 # 📌 Streamlit Arayüzü
@@ -81,14 +73,13 @@ url_input = st.text_input("URL Girin:", "")
 
 if st.button("Detect"):
     if url_input:
-        # 📌 URL'den özellikleri çıkar
-        features = extract_features_from_url(url_input)
-        input_data = pd.DataFrame([features])
+        # 📌 URL'yi işle
+        input_data = process_url(url_input)
 
         # 📌 Kategorik değişkenleri encode et
         input_data = encode_categorical_features(input_data)
 
-        # 📌 Modelin eğitimdeki özellik sırasına göre düzenle
+        # 📌 Modelin eğitim sırası ile uyumlu hale getir
         input_data = input_data[feature_order]
 
         # 📌 Model ile tahmin yap
