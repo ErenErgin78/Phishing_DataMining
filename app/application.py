@@ -1,49 +1,70 @@
 # -*- coding: utf-8 -*-
 """
-Updated on Thu Feb  7 2025
+Updated on Fri Feb 7 2025
 
-@author: Eren (XGBoost Versiyonu)
+@author: Eren (XGBoost + Streamlit)
 """
 
 import streamlit as st
-import joblib
 import pandas as pd
 import re
+import tldextract
 from urllib.parse import urlparse
 import pickle
-import tldextract
+from sklearn.preprocessing import LabelEncoder
 
 # 📌 Modeli yükle
 try:
     with open("xgboost_model.pkl", "rb") as file:
         model = pickle.load(file)
-    st.success("XGBoost Model başarıyla yüklendi")
 except Exception as e:
     st.error(f"Model yüklenirken hata oluştu: {e}")
     st.stop()
 
-# 📌 URL'den öznitelik çıkarımı (Final CSV formatına uygun hale getirildi)
-def extract_features(url):
+# 📌 Modelin eğitimde kullandığı tam sütun sırası
+feature_order = [
+    "url_length", "num_digits", "num_at", "num_percent20", "num_special_chars",
+    "num_parameters", "num_fragments", "subdomain", "root_domain", "domain_extension",
+    "has_http", "has_https", "has_ip"
+]
+
+# 📌 URL'den 13 özellik çıkaran fonksiyon
+def extract_features_from_url(url):
+    if not url.startswith(("http://", "https://")):
+        url = "http://" + url
+
     parsed_url = urlparse(url)
-    extracted = tldextract.extract(url)
+    extracted = tldextract.extract(parsed_url.netloc)
 
     features = {
-        "url_length": len(url),  # URL uzunluğu
-        "num_digits": sum(c.isdigit() for c in url),  # Rakam sayısı
-        "num_special_chars": sum(not c.isalnum() for c in url),  # Özel karakter sayısı
-        "num_parameters": url.count("?"),  # Sorgu parametre sayısı
-        "num_fragments": url.count("#"),  # Fragment sayısı (# işareti)
-        "has_https": 1 if parsed_url.scheme == "https" else 0,  # HTTPS olup olmadığı
-        "has_http": 1 if "http://" in url else 0,  # HTTP olup olmadığı
-        "has_ip": 1 if re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", parsed_url.netloc) else 0,  # IP içeriyor mu?
-        "subdomain": extracted.subdomain,  # Subdomain (alt alan adı)
-        "root_domain": f"{extracted.domain}.{extracted.suffix}",  # Root domain
-        "domain_extension": extracted.suffix  # Alan adı uzantısı (.com, .net)
+        "url_length": len(url),
+        "num_digits": sum(c.isdigit() for c in url),
+        "num_at": url.count("@"),
+        "num_percent20": url.count("%20"),
+        "num_special_chars": sum(not c.isalnum() for c in url),
+        "num_parameters": url.count("?"),
+        "num_fragments": url.count("#"),
+        "subdomain": extracted.subdomain if extracted.subdomain else "none",
+        "root_domain": f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain,
+        "domain_extension": extracted.suffix if extracted.suffix else "unknown",
+        "has_http": 1 if "http://" in url else 0,
+        "has_https": 1 if "https://" in url else 0,
+        "has_ip": 1 if re.match(r"(\d{1,3}\.){3}\d{1,3}", parsed_url.netloc) else 0
     }
-    
+
     return features
 
-# 📌 Arayüz Başlangıcı
+# 📌 Kategorik değişkenleri sayısal hale getiren fonksiyon
+def encode_categorical_features(df):
+    categorical_columns = ["subdomain", "root_domain", "domain_extension"]
+
+    for col in categorical_columns:
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col].astype(str))  
+
+    return df
+
+# 📌 Streamlit Arayüzü
 st.title("🔍 XGBoost Phishing URL Detector")
 st.write("Lütfen analiz etmek istediğiniz URL'yi girin ve 'Detect' butonuna basın.")
 
@@ -52,25 +73,21 @@ url_input = st.text_input("URL Girin:", "")
 
 if st.button("Detect"):
     if url_input:
-        features = extract_features(url_input)
+        # 📌 URL'den özellikleri çıkar
+        features = extract_features_from_url(url_input)
         input_data = pd.DataFrame([features])
 
-        # 📌 Kategorik değişkenleri encode et (Subdomain, Root Domain, Domain Uzantısı)
-        try:
-            label_encoders = joblib.load("label_encoders.pkl")
-            for col in ["subdomain", "root_domain", "domain_extension"]:
-                if input_data[col][0] not in label_encoders[col].classes_:
-                    input_data[col] = "unknown"  # Yeni değerler için
-                input_data[col] = label_encoders[col].transform([input_data[col][0]])
-        except Exception as e:
-            st.error(f"Kategorik değişkenler encode edilirken hata: {e}")
-            st.stop()
+        # 📌 Kategorik değişkenleri encode et
+        input_data = encode_categorical_features(input_data)
 
-        # 📌 Model ile tahmin
+        # 📌 Modelin eğitimdeki özellik sırasına göre düzenle
+        input_data = input_data[feature_order]
+
+        # 📌 Model ile tahmin yap
         prediction = model.predict(input_data)[0]
 
         # 📌 Sonuç
-        if prediction == 0:
+        if prediction == 1:
             st.success("✅ SAFE - Bu site güvenli görünüyor.")
             st.markdown(
                 "<div style='background-color:#27AE60; padding:15px; border-radius:10px; text-align:center; color:white;'>"
