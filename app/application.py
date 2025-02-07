@@ -10,14 +10,14 @@ import pandas as pd
 import re
 import tldextract
 from urllib.parse import urlparse
-import pickle
+import xgboost as xgb
 from sklearn.preprocessing import LabelEncoder
 
-# 📌 Modeli yükle
+# 📌 Modeli yükle (Artık JSON formatında)
 try:
-    with open("app/xgboost_model.pkl", "rb") as file:
-        model = pickle.load(file)
-    st.success("XGBoost Model başarıyla yüklendi")
+    model = xgb.Booster()
+    model.load_model("app/xgboost_model.json")
+    st.success("XGBoost Model (JSON) başarıyla yüklendi")
 except Exception as e:
     st.error(f"Model yüklenirken hata oluştu: {e}")
     st.stop()
@@ -82,11 +82,13 @@ if st.button("Detect"):
         # 📌 Modelin eğitim sırası ile uyumlu hale getir
         input_data = input_data[feature_order]
 
-        # 📌 Model ile tahmin yap
-        prediction = model.predict(input_data)[0]
+        # 📌 Model ile tahmin yap (DMatrix kullanarak)
+        dmatrix_data = xgb.DMatrix(input_data)
+        prediction = model.predict(dmatrix_data)[0]
+        predicted_class = 1 if prediction > 0.5 else 0  # 0.5 eşik değeri
 
         # 📌 Sonuç
-        if prediction == 1:
+        if predicted_class == 1:
             st.success("✅ SAFE - Bu site güvenli görünüyor.")
             st.markdown(
                 "<div style='background-color:#27AE60; padding:15px; border-radius:10px; text-align:center; color:white;'>"
