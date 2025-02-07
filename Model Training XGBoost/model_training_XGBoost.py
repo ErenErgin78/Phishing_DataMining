@@ -10,6 +10,7 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report
+import pickle
 
 # CSV yükle
 file_path = "final_url_features.csv"
@@ -20,14 +21,14 @@ categorical_columns = ["subdomain", "root_domain", "domain_extension"]
 for col in categorical_columns:
     df[col] = LabelEncoder().fit_transform(df[col].astype(str))
 
-# X ve y belirle
+# Özellikler ve hedef değişken
 X = df.drop(columns=["status"])
 y = df["status"]
 
 # Eksik verileri doldur
 X.fillna(0, inplace=True)
 
-# Eğitim-test böl
+# Eğitim ve test böl
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Model tanımla
@@ -39,23 +40,23 @@ model = xgb.XGBClassifier(
     reg_lambda=0.5,
     subsample=0.8,
     colsample_bytree=0.8,
-    random_state=31,
-    use_label_encoder=False,
-    eval_metric="logloss"
+    random_state=42,
+    use_label_encoder=False
 )
 
-# Model eğit
+# Model eğit (Erken durdurma eklendi)
 model.fit(
     X_train, y_train,
-    eval_set=[(X_test, y_test)],
-    early_stopping_rounds=10,
-    verbose=False
+    eval_set=[(X_test, y_test)],  # Doğrulama seti
+    eval_metric="logloss",
+    early_stopping_rounds=10,  # 10 iterasyon iyileşme olmazsa dur
+    verbose=True
 )
 
 # Tahmin yap
 y_pred = model.predict(X_test)
 
-# Başarı ölç
+# Başarıyı ölç
 accuracy = accuracy_score(y_test, y_pred)
 classification_rep = classification_report(y_test, y_pred)
 
@@ -63,18 +64,14 @@ classification_rep = classification_report(y_test, y_pred)
 results_df = pd.DataFrame({"y_true": y_test, "y_pred": y_pred})
 results_df.to_csv("xgboost_predictions.csv", index=False)
 
+# Modeli kaydet
+model.save_model("xgboost_model.json")
+
 # Sonuçları yazdır
 print(f"Accuracy: {accuracy}")
 print(classification_rep)
-print("Model tahminleri kaydedildi.")
+print("Model ve tahminler kaydedildi.")
 
-
-# Modeli kaydet
-model.save_model("model.json")
-print("Model kaydedildi: model.json")
-
-
-import pickle
 
 # Modeli ayrıca pkl olarak kaydet
 with open("xgboost_model.pkl", "wb") as file:
